@@ -11,31 +11,29 @@
 #'   Can also be set via `TREINUS_EMAIL` environment variable.
 #' @param password Character string with your Treinus password.
 #'   Can also be set via `TREINUS_PASSWORD` environment variable.
-#' @param team Team ID (numeric) or team name (character) to select if the user
-#'   belongs to multiple teams. Can also be set via `TREINUS_TEAM` environment
-#'   variable. If NULL and user has multiple teams, uses the first (default) team.
+#' @param team_id Integer team ID to select if the user belongs to multiple teams.
+#'   Can also be set via `TREINUS_TEAM_ID` environment variable.
+#'   If NULL and user has multiple teams, uses the first (default) team.
 #' @param remember_me Logical. Keep session alive for future requests.
 #'   Default is TRUE.
 #' @param base_url Character string with the base URL for Treinus.
 #'   Default is "https://webapp.treinus.com.br".
 #'
 #' @return A `treinus_session` object that can be used for API calls.
+#'   The session stores `team_id` as an attribute for use in subsequent calls.
 #'
 #' @examples
 #' \dontrun{
-#' # Authenticate using environment variables
+#' # Authenticate using environment variables (recommended)
+#' # Set in .Renviron: TREINUS_EMAIL, TREINUS_PASSWORD, TREINUS_TEAM_ID
 #' session <- treinus_auth()
 #'
-#' # Or provide credentials directly (not recommended for scripts)
+#' # Or provide credentials directly
 #' session <- treinus_auth(
 #'   email = "your.email@example.com",
-#'   password = "your-password"
+#'   password = "your-password",
+#'   team_id = 2994
 #' )
-#'
-#' # If you belong to multiple teams, specify which one to use
-#' session <- treinus_auth(team = "My Team Name")
-#' # Or by team ID
-#' session <- treinus_auth(team = 600)
 #' }
 #'
 #' @seealso [treinus_login()], [treinus_select_team()] for Shiny apps
@@ -43,11 +41,11 @@
 treinus_auth <- function(
     email = NULL,
     password = NULL,
-    team = NULL,
+    team_id = NULL,
     remember_me = TRUE,
     base_url = "https://webapp.treinus.com.br") {
-  # Get team from environment if not provided
-team <- team %||% Sys.getenv("TREINUS_TEAM", unset = NA)
+  # Get team_id from environment if not provided
+  team_id <- team_id %||% Sys.getenv("TREINUS_TEAM_ID", unset = NA)
 
   # Do initial login
   login_result <- treinus_login(
@@ -63,7 +61,7 @@ team <- team %||% Sys.getenv("TREINUS_TEAM", unset = NA)
   }
 
   # Otherwise, need to select a team
-  treinus_select_team(login_result, team = team)
+  treinus_select_team(login_result, team = team_id)
 }
 
 

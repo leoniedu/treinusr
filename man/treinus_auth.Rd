@@ -7,7 +7,7 @@
 treinus_auth(
   email = NULL,
   password = NULL,
-  team = NULL,
+  team_id = NULL,
   remember_me = TRUE,
   base_url = "https://webapp.treinus.com.br"
 )
@@ -19,9 +19,9 @@ Can also be set via \code{TREINUS_EMAIL} environment variable.}
 \item{password}{Character string with your Treinus password.
 Can also be set via \code{TREINUS_PASSWORD} environment variable.}
 
-\item{team}{Team ID (numeric) or team name (character) to select if the user
-belongs to multiple teams. Can also be set via \code{TREINUS_TEAM} environment
-variable. If NULL and user has multiple teams, uses the first (default) team.}
+\item{team_id}{Integer team ID to select if the user belongs to multiple teams.
+Can also be set via \code{TREINUS_TEAM_ID} environment variable.
+If NULL and user has multiple teams, uses the first (default) team.}
 
 \item{remember_me}{Logical. Keep session alive for future requests.
 Default is TRUE.}
@@ -31,6 +31,7 @@ Default is "https://webapp.treinus.com.br".}
 }
 \value{
 A \code{treinus_session} object that can be used for API calls.
+The session stores \code{team_id} as an attribute for use in subsequent calls.
 }
 \description{
 Creates an authenticated session with the Treinus webapp. This function
@@ -43,19 +44,16 @@ use \code{\link[=treinus_login]{treinus_login()}} and \code{\link[=treinus_selec
 }
 \examples{
 \dontrun{
-# Authenticate using environment variables
+# Authenticate using environment variables (recommended)
+# Set in .Renviron: TREINUS_EMAIL, TREINUS_PASSWORD, TREINUS_TEAM_ID
 session <- treinus_auth()
 
-# Or provide credentials directly (not recommended for scripts)
+# Or provide credentials directly
 session <- treinus_auth(
   email = "your.email@example.com",
-  password = "your-password"
+  password = "your-password",
+  team_id = 2994
 )
-
-# If you belong to multiple teams, specify which one to use
-session <- treinus_auth(team = "My Team Name")
-# Or by team ID
-session <- treinus_auth(team = 600)
 }
 
 }

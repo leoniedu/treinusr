@@ -7,7 +7,8 @@
 treinus_set_credentials(
   email = NULL,
   password = NULL,
-  team = NULL,
+  team_id = NULL,
+  athlete_id = NULL,
   overwrite = FALSE
 )
 }
@@ -16,8 +17,9 @@ treinus_set_credentials(
 
 \item{password}{Optional password to set. If NULL, will prompt interactively.}
 
-\item{team}{Optional team ID or name for users with multiple teams. If NULL,
-will use the default team during login.}
+\item{team_id}{Optional integer team ID for users with multiple teams.}
+
+\item{athlete_id}{Optional integer athlete ID.}
 
 \item{overwrite}{Logical. Overwrite existing credentials? Default FALSE.}
 }
@@ -36,14 +38,9 @@ treinus_set_credentials()
 # Or provide directly
 treinus_set_credentials(
   email = "your.email@example.com",
-  password = "your-password"
-)
-
-# For users with multiple teams
-treinus_set_credentials(
-  email = "your.email@example.com",
   password = "your-password",
-  team = "My Team"
+  team_id = 2994,
+  athlete_id = 50
 )
 }
 

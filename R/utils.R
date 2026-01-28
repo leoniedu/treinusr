@@ -5,8 +5,8 @@
 #'
 #' @param email Optional email to set. If NULL, will prompt interactively.
 #' @param password Optional password to set. If NULL, will prompt interactively.
-#' @param team Optional team ID or name for users with multiple teams. If NULL,
-#'   will use the default team during login.
+#' @param team_id Optional integer team ID for users with multiple teams.
+#' @param athlete_id Optional integer athlete ID.
 #' @param overwrite Logical. Overwrite existing credentials? Default FALSE.
 #'
 #' @return Invisibly returns TRUE if credentials were set successfully
@@ -19,19 +19,15 @@
 #' # Or provide directly
 #' treinus_set_credentials(
 #'   email = "your.email@example.com",
-#'   password = "your-password"
-#' )
-#'
-#' # For users with multiple teams
-#' treinus_set_credentials(
-#'   email = "your.email@example.com",
 #'   password = "your-password",
-#'   team = "My Team"
+#'   team_id = 2994,
+#'   athlete_id = 50
 #' )
 #' }
 #'
 #' @export
-treinus_set_credentials <- function(email = NULL, password = NULL, team = NULL, overwrite = FALSE) {
+treinus_set_credentials <- function(email = NULL, password = NULL, team_id = NULL,
+                                    athlete_id = NULL, overwrite = FALSE) {
   
   # Get .Renviron path
   renviron_path <- file.path(Sys.getenv("HOME"), ".Renviron")
@@ -72,7 +68,9 @@ treinus_set_credentials <- function(email = NULL, password = NULL, team = NULL, 
     renviron_lines <- renviron_lines[
       !grepl("^TREINUS_EMAIL=", renviron_lines) &
       !grepl("^TREINUS_PASSWORD=", renviron_lines) &
-      !grepl("^TREINUS_TEAM=", renviron_lines)
+      !grepl("^TREINUS_TEAM_ID=", renviron_lines) &
+      !grepl("^TREINUS_TEAM=", renviron_lines) &
+      !grepl("^TREINUS_ATHLETE_ID=", renviron_lines)
     ]
   } else {
     renviron_lines <- character(0)
@@ -91,10 +89,14 @@ treinus_set_credentials <- function(email = NULL, password = NULL, team = NULL, 
     sprintf('TREINUS_PASSWORD="%s"', password_escaped)
   )
 
-  # Add team if specified
-  if (!is.null(team) && team != "") {
-    team_escaped <- gsub('"', '\\"', as.character(team), fixed = TRUE)
-    new_lines <- c(new_lines, sprintf('TREINUS_TEAM="%s"', team_escaped))
+  # Add team_id if specified
+  if (!is.null(team_id)) {
+    new_lines <- c(new_lines, sprintf('TREINUS_TEAM_ID="%s"', as.integer(team_id)))
+  }
+
+  # Add athlete_id if specified
+  if (!is.null(athlete_id)) {
+    new_lines <- c(new_lines, sprintf('TREINUS_ATHLETE_ID="%s"', as.integer(athlete_id)))
   }
 
   # Write back to .Renviron
