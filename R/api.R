@@ -220,11 +220,11 @@ treinus_extract_records <- function(analysis, standardize = FALSE, tz = "America
 
   df |>
     dplyr::mutate(
-      timestamp = as.POSIXct(timestamp, tz = tz),
-      lat = position_lat * semicircles_to_deg,
-      lon = position_long * semicircles_to_deg,
-      distance_km = distance * dist_to_km,
-      speed_kmh = speed * speed_to_kmh
+      timestamp = as.POSIXct(.data$timestamp, tz = tz),
+      lat = .data$position_lat * semicircles_to_deg,
+      lon = .data$position_long * semicircles_to_deg,
+      distance_km = .data$distance * dist_to_km,
+      speed_kmh = .data$speed * speed_to_kmh
     )
 }
 
