@@ -54,6 +54,7 @@ treinus_get_exercises <- function(session, athlete_id = NULL) {
 #' @param session A treinus_session object from [treinus_auth()]
 #' @param athlete_ids Integer vector of athlete IDs
 #' @param .progress Show progress bar? Default TRUE.
+#' @param .delay Numeric. Seconds to wait between API requests. Default 0.5.
 #'
 #' @return A tibble with exercise data for all athletes
 #'
@@ -64,14 +65,22 @@ treinus_get_exercises <- function(session, athlete_id = NULL) {
 #' }
 #'
 #' @export
-treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) {
+treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE, .delay = 0.5) {
   if (!inherits(session, "treinus_session")) {
     cli::cli_abort("{.arg session} must be a treinus_session object from {.fn treinus_auth}")
   }
 
+  first_call <- TRUE
+
   results <- purrr::map(
     athlete_ids,
     function(id) {
+      # Rate limit: delay between API calls
+      if (!first_call && .delay > 0) {
+        Sys.sleep(.delay)
+      }
+      first_call <<- FALSE
+
       tryCatch(
         treinus_get_exercises(session, athlete_id = id),
         error = function(e) {
@@ -101,6 +110,8 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 #' @param cache Logical. Cache results locally? Default TRUE.
 #'   Cached data is stored in the user cache directory (see [treinus_cache_dir()]).
 #' @param .progress Logical. Show progress bar for multiple exercises? Default TRUE.
+#' @param .delay Numeric. Seconds to wait between API requests (for multiple exercises).
+#'   Default 0.5. Set to 0 for no delay. Only applies to non-cached requests.
 #'
 #' @return For a single exercise_id, a list with exercise analysis data.
 #'   For multiple exercise_ids, a named list of analysis results.
@@ -129,7 +140,7 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 #' @seealso [treinus_cache_dir()], [treinus_clear_cache()]
 #' @export
 treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id = NULL, team_id = NULL,
-                                          cache = TRUE, .progress = TRUE) {
+                                          cache = TRUE, .progress = TRUE, .delay = 0.5) {
   if (!inherits(session, "treinus_session")) {
     cli::cli_abort("{.arg session} must be a treinus_session object from {.fn treinus_auth}")
   }
@@ -150,9 +161,27 @@ treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id = NUL
   }
 
   # Multiple exercises - return named list
+  # Track if we need delay (only after actual API calls, not cache hits)
+  last_api_call <- FALSE
+
   results <- purrr::map(
     exercise_id,
     function(ex_id) {
+      # Rate limit: delay after previous API call
+      if (last_api_call && .delay > 0) {
+        Sys.sleep(.delay)
+      }
+
+      # Check if cached (no API call needed)
+      if (cache) {
+        cache_file <- treinus_cache_path(team_id, athlete_id, ex_id)
+        if (file.exists(cache_file)) {
+          last_api_call <<- FALSE
+          return(readRDS(cache_file))
+        }
+      }
+
+      last_api_call <<- TRUE
       tryCatch(
         fetch_single_analysis(session, ex_id, athlete_id, team_id, cache),
         error = function(e) {

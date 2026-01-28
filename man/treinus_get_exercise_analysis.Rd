@@ -10,7 +10,8 @@ treinus_get_exercise_analysis(
   athlete_id = NULL,
   team_id = NULL,
   cache = TRUE,
-  .progress = TRUE
+  .progress = TRUE,
+  .delay = 0.5
 )
 }
 \arguments{
@@ -28,6 +29,9 @@ team_id from session (if set during auth) or \code{TREINUS_TEAM_ID} environment 
 Cached data is stored in the user cache directory (see \code{\link[=treinus_cache_dir]{treinus_cache_dir()}}).}
 
 \item{.progress}{Logical. Show progress bar for multiple exercises? Default TRUE.}
+
+\item{.delay}{Numeric. Seconds to wait between API requests (for multiple exercises).
+Default 0.5. Set to 0 for no delay. Only applies to non-cached requests.}
 }
 \value{
 For a single exercise_id, a list with exercise analysis data.
