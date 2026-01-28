@@ -9,46 +9,54 @@ treinus_get_exercise_analysis(
   exercise_id,
   athlete_id,
   team_id,
-  cache = TRUE
+  cache = TRUE,
+  .progress = TRUE
 )
 }
 \arguments{
 \item{session}{A treinus_session object from \code{\link[=treinus_auth]{treinus_auth()}}}
 
-\item{exercise_id}{Integer ID of the exercise}
+\item{exercise_id}{Integer ID(s) of the exercise(s). Can be a vector.}
 
-\item{athlete_id}{Integer ID of the athlete}
+\item{athlete_id}{Integer ID of the athlete (single value)}
 
-\item{team_id}{Integer ID of the team}
+\item{team_id}{Integer ID of the team (single value)}
 
 \item{cache}{Logical. Cache results locally? Default TRUE.
 Cached data is stored in the user cache directory (see \code{\link[=treinus_cache_dir]{treinus_cache_dir()}}).}
+
+\item{.progress}{Logical. Show progress bar for multiple exercises? Default TRUE.}
 }
 \value{
-A list with exercise analysis data including \code{Records} with
-detailed time-series data.
+For a single exercise_id, a list with exercise analysis data.
+For multiple exercise_ids, a named list of analysis results.
 }
 \description{
-Retrieves detailed analysis data for a specific exercise, including
+Retrieves detailed analysis data for one or more exercises, including
 GPS records, heart rate, and other metrics.
 }
 \examples{
 \dontrun{
 session <- treinus_auth()
+
+# Single exercise
 analysis <- treinus_get_exercise_analysis(
   session,
   exercise_id = 57,
   athlete_id = 50,
   team_id = 2994
 )
-# Access records
 records <- analysis$data$Analysis$Records
 
-# Disable caching for fresh data
-analysis <- treinus_get_exercise_analysis(
-  session, 57, 50, 2994,
-  cache = FALSE
+# Multiple exercises
+analyses <- treinus_get_exercise_analysis(
+  session,
+  exercise_id = c(57, 58, 59),
+  athlete_id = 50,
+  team_id = 2994
 )
+# Access by exercise_id
+analyses[["57"]]$data$Analysis$Records
 }
 
 }

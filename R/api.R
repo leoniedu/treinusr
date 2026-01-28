@@ -82,45 +82,87 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 
 #' Get detailed exercise analysis
 #'
-#' Retrieves detailed analysis data for a specific exercise, including
+#' Retrieves detailed analysis data for one or more exercises, including
 #' GPS records, heart rate, and other metrics.
 #'
 #' @param session A treinus_session object from [treinus_auth()]
-#' @param exercise_id Integer ID of the exercise
-#' @param athlete_id Integer ID of the athlete
-#' @param team_id Integer ID of the team
+#' @param exercise_id Integer ID(s) of the exercise(s). Can be a vector.
+#' @param athlete_id Integer ID of the athlete (single value)
+#' @param team_id Integer ID of the team (single value)
 #' @param cache Logical. Cache results locally? Default TRUE.
 #'   Cached data is stored in the user cache directory (see [treinus_cache_dir()]).
+#' @param .progress Logical. Show progress bar for multiple exercises? Default TRUE.
 #'
-#' @return A list with exercise analysis data including `Records` with
-#'   detailed time-series data.
+#' @return For a single exercise_id, a list with exercise analysis data.
+#'   For multiple exercise_ids, a named list of analysis results.
 #'
 #' @examples
 #' \dontrun{
 #' session <- treinus_auth()
+#'
+#' # Single exercise
 #' analysis <- treinus_get_exercise_analysis(
 #'   session,
 #'   exercise_id = 57,
 #'   athlete_id = 50,
 #'   team_id = 2994
 #' )
-#' # Access records
 #' records <- analysis$data$Analysis$Records
 #'
-#' # Disable caching for fresh data
-#' analysis <- treinus_get_exercise_analysis(
-#'   session, 57, 50, 2994,
-#'   cache = FALSE
+#' # Multiple exercises
+#' analyses <- treinus_get_exercise_analysis(
+#'   session,
+#'   exercise_id = c(57, 58, 59),
+#'   athlete_id = 50,
+#'   team_id = 2994
 #' )
+#' # Access by exercise_id
+#' analyses[["57"]]$data$Analysis$Records
 #' }
 #'
 #' @seealso [treinus_cache_dir()], [treinus_clear_cache()]
 #' @export
-treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id, team_id, cache = TRUE) {
+treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id, team_id,
+                                          cache = TRUE, .progress = TRUE) {
   if (!inherits(session, "treinus_session")) {
     cli::cli_abort("{.arg session} must be a treinus_session object from {.fn treinus_auth}")
   }
 
+  if (length(athlete_id) != 1) {
+    cli::cli_abort("{.arg athlete_id} must be a single value, not a vector.")
+  }
+  if (length(team_id) != 1) {
+    cli::cli_abort("{.arg team_id} must be a single value, not a vector.")
+  }
+
+  # Single exercise - return directly
+  if (length(exercise_id) == 1) {
+    return(fetch_single_analysis(session, exercise_id, athlete_id, team_id, cache))
+  }
+
+  # Multiple exercises - return named list
+  results <- purrr::map(
+    exercise_id,
+    function(ex_id) {
+      tryCatch(
+        fetch_single_analysis(session, ex_id, athlete_id, team_id, cache),
+        error = function(e) {
+          cli::cli_alert_warning("Failed exercise {ex_id}: {conditionMessage(e)}")
+          NULL
+        }
+      )
+    },
+    .progress = .progress
+  )
+
+  names(results) <- as.character(exercise_id)
+  results
+}
+
+
+#' Fetch a single exercise analysis (internal)
+#' @keywords internal
+fetch_single_analysis <- function(session, exercise_id, athlete_id, team_id, cache) {
   # Check cache first
   if (cache) {
     cache_file <- treinus_cache_path(team_id, athlete_id, exercise_id)
