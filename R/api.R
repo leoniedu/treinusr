@@ -70,27 +70,29 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE, 
     cli::cli_abort("{.arg session} must be a treinus_session object from {.fn treinus_auth}")
   }
 
-  first_call <- TRUE
+  n <- length(athlete_ids)
+  results <- vector("list", n)
 
-  results <- purrr::map(
-    athlete_ids,
-    function(id) {
-      # Rate limit: delay between API calls
-      if (!first_call && .delay > 0) {
-        Sys.sleep(.delay)
+  if (.progress) cli::cli_progress_bar("Fetching athletes", total = n)
+
+  for (i in seq_len(n)) {
+    # Rate limit: delay between API calls (skip first)
+    if (i > 1 && .delay > 0) {
+      Sys.sleep(.delay)
+    }
+
+    results[[i]] <- tryCatch(
+      treinus_get_exercises(session, athlete_id = athlete_ids[i]),
+      error = function(e) {
+        cli::cli_alert_warning("Failed to get exercises for athlete {athlete_ids[i]}: {e$message}")
+        tibble::tibble()
       }
-      first_call <<- FALSE
+    )
 
-      tryCatch(
-        treinus_get_exercises(session, athlete_id = id),
-        error = function(e) {
-          cli::cli_alert_warning("Failed to get exercises for athlete {id}: {e$message}")
-          tibble::tibble()
-        }
-      )
-    },
-    .progress = .progress
-  )
+    if (.progress) cli::cli_progress_update()
+  }
+
+  if (.progress) cli::cli_progress_done()
 
   dplyr::bind_rows(results)
 }
@@ -161,39 +163,48 @@ treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id = NUL
   }
 
   # Multiple exercises - return named list
-  # Track if we need delay (only after actual API calls, not cache hits)
-  last_api_call <- FALSE
-
-  results <- purrr::map(
-    exercise_id,
-    function(ex_id) {
-      # Rate limit: delay after previous API call
-      if (last_api_call && .delay > 0) {
-        Sys.sleep(.delay)
-      }
-
-      # Check if cached (no API call needed)
-      if (cache) {
-        cache_file <- treinus_cache_path(team_id, athlete_id, ex_id)
-        if (file.exists(cache_file)) {
-          last_api_call <<- FALSE
-          return(readRDS(cache_file))
-        }
-      }
-
-      last_api_call <<- TRUE
-      tryCatch(
-        fetch_single_analysis(session, ex_id, athlete_id, team_id, cache),
-        error = function(e) {
-          cli::cli_alert_warning("Failed exercise {ex_id}: {conditionMessage(e)}")
-          NULL
-        }
-      )
-    },
-    .progress = .progress
-  )
-
+  n <- length(exercise_id)
+  results <- vector("list", n)
   names(results) <- as.character(exercise_id)
+
+  if (.progress) cli::cli_progress_bar("Fetching exercises", total = n)
+
+  last_was_api_call <- FALSE
+
+  for (i in seq_len(n)) {
+    ex_id <- exercise_id[i]
+
+    # Rate limit: delay after previous API call
+    if (last_was_api_call && .delay > 0) {
+      Sys.sleep(.delay)
+    }
+
+    # Check cache first
+    if (cache) {
+      cache_file <- treinus_cache_path(team_id, athlete_id, ex_id)
+      if (file.exists(cache_file)) {
+        results[[i]] <- readRDS(cache_file)
+        last_was_api_call <- FALSE
+        if (.progress) cli::cli_progress_update()
+        next
+      }
+    }
+
+    # Fetch from API
+    last_was_api_call <- TRUE
+    results[[i]] <- tryCatch(
+      fetch_single_analysis(session, ex_id, athlete_id, team_id, cache),
+      error = function(e) {
+        cli::cli_alert_warning("Failed exercise {ex_id}: {conditionMessage(e)}")
+        NULL
+      }
+    )
+
+    if (.progress) cli::cli_progress_update()
+  }
+
+  if (.progress) cli::cli_progress_done()
+
   results
 }
 
