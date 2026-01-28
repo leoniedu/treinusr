@@ -4,16 +4,25 @@
 \alias{treinus_get_exercise_analysis}
 \title{Get detailed exercise analysis}
 \usage{
-treinus_get_exercise_analysis(session, exercise_id, athlete_id, team_id)
+treinus_get_exercise_analysis(
+  session,
+  exercise_id,
+  athlete_id,
+  team_id,
+  cache = TRUE
+)
 }
 \arguments{
 \item{session}{A treinus_session object from \code{\link[=treinus_auth]{treinus_auth()}}}
 
-\item{exercise_id}{Integer ID of the exercise (id_exercise_done)}
+\item{exercise_id}{Integer ID of the exercise}
 
 \item{athlete_id}{Integer ID of the athlete}
 
 \item{team_id}{Integer ID of the team}
+
+\item{cache}{Logical. Cache results locally? Default TRUE.
+Cached data is stored in the user cache directory (see \code{\link[=treinus_cache_dir]{treinus_cache_dir()}}).}
 }
 \value{
 A list with exercise analysis data including \code{Records} with
@@ -34,6 +43,15 @@ analysis <- treinus_get_exercise_analysis(
 )
 # Access records
 records <- analysis$data$Analysis$Records
+
+# Disable caching for fresh data
+analysis <- treinus_get_exercise_analysis(
+  session, 57, 50, 2994,
+  cache = FALSE
+)
 }
 
+}
+\seealso{
+\code{\link[=treinus_cache_dir]{treinus_cache_dir()}}, \code{\link[=treinus_clear_cache]{treinus_clear_cache()}}
 }

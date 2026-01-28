@@ -86,9 +86,11 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 #' GPS records, heart rate, and other metrics.
 #'
 #' @param session A treinus_session object from [treinus_auth()]
-#' @param exercise_id Integer ID of the exercise (id_exercise_done)
+#' @param exercise_id Integer ID of the exercise
 #' @param athlete_id Integer ID of the athlete
 #' @param team_id Integer ID of the team
+#' @param cache Logical. Cache results locally? Default TRUE.
+#'   Cached data is stored in the user cache directory (see [treinus_cache_dir()]).
 #'
 #' @return A list with exercise analysis data including `Records` with
 #'   detailed time-series data.
@@ -104,12 +106,27 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 #' )
 #' # Access records
 #' records <- analysis$data$Analysis$Records
+#'
+#' # Disable caching for fresh data
+#' analysis <- treinus_get_exercise_analysis(
+#'   session, 57, 50, 2994,
+#'   cache = FALSE
+#' )
 #' }
 #'
+#' @seealso [treinus_cache_dir()], [treinus_clear_cache()]
 #' @export
-treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id, team_id) {
+treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id, team_id, cache = TRUE) {
   if (!inherits(session, "treinus_session")) {
     cli::cli_abort("{.arg session} must be a treinus_session object from {.fn treinus_auth}")
+  }
+
+  # Check cache first
+  if (cache) {
+    cache_file <- treinus_cache_path(team_id, athlete_id, exercise_id)
+    if (file.exists(cache_file)) {
+      return(readRDS(cache_file))
+    }
   }
 
   base_url <- attr(session, "base_url")
@@ -125,7 +142,16 @@ treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id, team
     httr2::req_headers(Accept = "application/json") |>
     httr2::req_perform()
 
-  httr2::resp_body_json(resp)
+  result <- httr2::resp_body_json(resp)
+
+  # Save to cache
+ if (cache) {
+    cache_file <- treinus_cache_path(team_id, athlete_id, exercise_id)
+    dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(result, cache_file)
+  }
+
+  result
 }
 
 
@@ -353,4 +379,156 @@ treinus_parse_table <- function(html, selector = "table") {
   table |>
     rvest::html_table() |>
     tibble::as_tibble()
+}
+
+
+# Cache functions ---------------------------------------------------------
+
+#' Get the cache directory path
+#'
+#' Returns the path to the treinusr cache directory, following
+#' platform-specific conventions via [tools::R_user_dir()].
+#'
+#' @return Character string with the cache directory path.
+#'
+#' @examples
+#' treinus_cache_dir()
+#'
+#' @seealso [treinus_clear_cache()], [treinus_cache_info()]
+#' @export
+treinus_cache_dir <- function() {
+  tools::R_user_dir("treinusr", "cache")
+}
+
+
+#' Get cache file path for an exercise
+#'
+#' @param team_id Team ID
+#' @param athlete_id Athlete ID
+#' @param exercise_id Exercise ID
+#' @return Character string with cache file path
+#' @keywords internal
+treinus_cache_path <- function(team_id, athlete_id, exercise_id) {
+  file.path(
+    treinus_cache_dir(),
+    sprintf("%s_%s_%s.rds", team_id, athlete_id, exercise_id)
+  )
+}
+
+
+#' Clear the exercise analysis cache
+#'
+#' Removes cached exercise analysis data. Can clear all cached data or
+#' specific exercises.
+#'
+#' @param team_id Optional team ID to filter
+#' @param athlete_id Optional athlete ID to filter
+#' @param exercise_id Optional exercise ID to clear specific exercise
+#' @param all Logical. If TRUE, clear entire cache. Default FALSE.
+#'
+#' @return Invisibly returns the number of files deleted.
+#'
+#' @examples
+#' \dontrun{
+#' # Clear all cache
+#' treinus_clear_cache(all = TRUE)
+#'
+#' # Clear specific exercise
+#' treinus_clear_cache(team_id = 2994, athlete_id = 50, exercise_id = 151)
+#'
+#' # Clear all exercises for an athlete
+#' treinus_clear_cache(team_id = 2994, athlete_id = 50)
+#' }
+#'
+#' @seealso [treinus_cache_dir()], [treinus_cache_info()]
+#' @export
+treinus_clear_cache <- function(team_id = NULL, athlete_id = NULL, exercise_id = NULL, all = FALSE) {
+  cache_dir <- treinus_cache_dir()
+
+  if (!dir.exists(cache_dir)) {
+    cli::cli_alert_info("Cache directory does not exist.")
+    return(invisible(0L))
+  }
+
+  if (all) {
+    files <- list.files(cache_dir, pattern = "\\.rds$", full.names = TRUE)
+  } else if (!is.null(exercise_id) && !is.null(athlete_id) && !is.null(team_id)) {
+    # Specific exercise
+    files <- treinus_cache_path(team_id, athlete_id, exercise_id)
+    files <- files[file.exists(files)]
+  } else {
+    # Pattern match
+    pattern <- paste0(
+      if (!is.null(team_id)) team_id else "\\d+",
+      "_",
+      if (!is.null(athlete_id)) athlete_id else "\\d+",
+      "_",
+      if (!is.null(exercise_id)) exercise_id else "\\d+",
+      "\\.rds$"
+    )
+    files <- list.files(cache_dir, pattern = pattern, full.names = TRUE)
+  }
+
+  if (length(files) == 0) {
+    cli::cli_alert_info("No cached files match the criteria.")
+    return(invisible(0L))
+  }
+
+  unlink(files)
+  cli::cli_alert_success("Deleted {length(files)} cached file{?s}.")
+  invisible(length(files))
+}
+
+
+#' Get cache information
+#'
+#' Returns information about cached exercise analysis data.
+#'
+#' @return A tibble with columns: team_id, athlete_id, exercise_id, size_kb, modified
+#'
+#' @examples
+#' \dontrun{
+#' treinus_cache_info()
+#' }
+#'
+#' @seealso [treinus_cache_dir()], [treinus_clear_cache()]
+#' @export
+treinus_cache_info <- function() {
+  cache_dir <- treinus_cache_dir()
+
+  if (!dir.exists(cache_dir)) {
+    return(tibble::tibble(
+      team_id = integer(),
+      athlete_id = integer(),
+      exercise_id = integer(),
+      size_kb = numeric(),
+      modified = as.POSIXct(character())
+    ))
+  }
+
+  files <- list.files(cache_dir, pattern = "\\.rds$", full.names = TRUE)
+
+  if (length(files) == 0) {
+    return(tibble::tibble(
+      team_id = integer(),
+      athlete_id = integer(),
+      exercise_id = integer(),
+      size_kb = numeric(),
+      modified = as.POSIXct(character())
+    ))
+  }
+
+  info <- file.info(files)
+  basenames <- basename(files)
+
+  # Parse filenames: team_athlete_exercise.rds
+  parts <- strsplit(sub("\\.rds$", "", basenames), "_")
+
+  tibble::tibble(
+    team_id = as.integer(vapply(parts, `[`, character(1), 1)),
+    athlete_id = as.integer(vapply(parts, `[`, character(1), 2)),
+    exercise_id = as.integer(vapply(parts, `[`, character(1), 3)),
+    size_kb = round(info$size / 1024, 1),
+    modified = info$mtime
+  )
 }
