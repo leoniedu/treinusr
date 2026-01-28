@@ -30,13 +30,16 @@ Default is TRUE.}
 Default is "https://webapp.treinus.com.br".}
 }
 \value{
-An httr2 request object with authenticated session cookies that
-can be used for subsequent API calls.
+A \code{treinus_session} object that can be used for API calls.
 }
 \description{
 Creates an authenticated session with the Treinus webapp. This function
 handles the ASP.NET WebForms authentication flow, including extracting
 ViewState tokens and managing session cookies.
+}
+\details{
+For Shiny apps or other cases where you need to present team selection UI,
+use \code{\link[=treinus_login]{treinus_login()}} and \code{\link[=treinus_select_team]{treinus_select_team()}} instead.
 }
 \examples{
 \dontrun{
@@ -55,4 +58,7 @@ session <- treinus_auth(team = "My Team Name")
 session <- treinus_auth(team = 600)
 }
 
+}
+\seealso{
+\code{\link[=treinus_login]{treinus_login()}}, \code{\link[=treinus_select_team]{treinus_select_team()}} for Shiny apps
 }
