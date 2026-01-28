@@ -15,22 +15,18 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Introduction
-
-The `treinusr` package provides a modern R interface to the Treinus workout tracking platform. This vignette will walk you through the setup and basic usage.
-
 ## Installation
 
 ```{r}
 # Install from GitHub
-pak::pak("yourusername/treinusr")
+pak::pak("edColumn/treinusr")
 ```
 
 ## Authentication Setup
 
 ### Secure Credential Storage
 
-The recommended way to store your Treinus credentials is using environment variables. The package provides a helper function for this:
+Store your Treinus credentials using environment variables:
 
 ```{r}
 library(treinusr)
@@ -45,214 +41,167 @@ This saves your credentials to `~/.Renviron`. After running this, restart R or r
 readRenviron("~/.Renviron")
 ```
 
-### Manual Setup
-
-Alternatively, manually edit your `~/.Renviron` file:
-
-```
-TREINUS_EMAIL=your.email@example.com
-TREINUS_PASSWORD=your-password
-```
-
 ### Verify Configuration
-
-Check that credentials are properly configured:
 
 ```{r}
 treinus_config()
+treinus_has_credentials()
 ```
 
 ## Basic Usage
 
 ### Create a Session
 
-Once credentials are configured, authenticate with Treinus:
-
 ```{r}
 session <- treinus_auth()
 ```
 
-The `session` object contains your authenticated session and can be reused for multiple requests.
+If you belong to multiple teams, you'll be prompted to select one.
 
 ### Check Session Status
 
 ```{r}
-# Verify the session is still valid
 treinus_session_valid(session)
 ```
 
-### Retrieve Data
+## Retrieving Data
 
-#### Dashboard Summary
+### Get Exercises
 
 ```{r}
-dashboard <- treinus_get_dashboard(session)
-str(dashboard)
+# Get exercises for a single athlete
+exercises <- treinus_get_exercises(session, athlete_id = 50)
+
+# Get exercises for multiple athletes
+exercises <- treinus_get_exercises_batch(
+  session,
+  athlete_ids = c(50, 51, 52),
+  .progress = TRUE
+)
 ```
 
-#### Workout Data
+### Get Exercise Analysis
+
+Retrieve detailed GPS and sensor data for a specific exercise:
+```{r}
+analysis <- treinus_get_exercise_analysis(
+  session,
+  exercise_id = 57,
+  athlete_id = 50,
+  team_id = 2994
+)
+```
+
+### Extract Records
+
+Extract time-series records from the analysis:
 
 ```{r}
-# Get all workouts
-workouts <- treinus_get_workouts(session)
+# Raw records with unit metadata as attributes
+records <- treinus_extract_records(analysis)
 
-# Get workouts for a specific date range
-jan_workouts <- treinus_get_workouts(
-  session,
-  start_date = "2024-01-01",
-  end_date = "2024-01-31"
-)
+# Check units
+attr(records, "DistanceUnit")
+attr(records, "SpeedUnit")
+attr(records, "CadenceUnit")
+```
+
+For standardized units (coordinates in degrees, distance in km, speed in km/h):
+
+```{r}
+records <- treinus_extract_records(analysis, standardize = TRUE)
+
+# Now includes:
+# - timestamp: POSIXct
+# - lat, lon: degrees
+# - distance_km: kilometers
+# - speed_kmh: km/h
 ```
 
 ### Custom API Requests
 
-For endpoints not yet wrapped by the package:
+For endpoints not yet wrapped:
 
 ```{r}
-# Make a custom request
 resp <- treinus_request(
   session,
   endpoint = "/Athlete/Performance/Index",
   method = "GET"
 )
 
-# Parse the HTML response
+# Parse HTML response
 page <- httr2::resp_body_html(resp)
-
-# Extract data from tables
-library(rvest)
-data <- page |>
-  html_element("table") |>
-  html_table()
+data <- treinus_parse_table(page)
 ```
 
-## Integration with Tidyverse
-
-The package is designed to work seamlessly with tidyverse workflows:
+## Workflow Example
 
 ```{r}
-library(tidyverse)
 library(treinusr)
+library(dplyr)
 
 # Authenticate
 session <- treinus_auth()
 
-# Get and analyze workout data
-workout_summary <- treinus_get_workouts(session) |>
-  mutate(
-    date = as.Date(date),
-    distance_km = distance / 1000,
-    pace_min_km = duration_minutes / distance_km
-  ) |>
-  filter(date >= "2024-01-01") |>
-  group_by(sport_type) |>
+# Get exercises
+exercises <- treinus_get_exercises(session, athlete_id = 50)
+
+# Get analysis for most recent exercise
+latest <- exercises |> slice(1)
+
+analysis <- treinus_get_exercise_analysis(
+  session,
+  exercise_id = latest$id_exercise_done,
+  athlete_id = 50,
+  team_id = latest$id_team
+)
+
+# Extract standardized records
+records <- treinus_extract_records(analysis, standardize = TRUE)
+
+# Analyze
+records |>
   summarise(
-    total_workouts = n(),
-    total_distance = sum(distance_km),
-    avg_pace = mean(pace_min_km, na.rm = TRUE)
+    duration_min = as.numeric(difftime(max(timestamp), min(timestamp), units = "mins")),
+    distance_km = max(distance_km),
+    avg_speed_kmh = mean(speed_kmh, na.rm = TRUE),
+    avg_hr = mean(heart_rate, na.rm = TRUE)
   )
 ```
 
-## Advanced Usage
+## Best Practices
 
-### Working with data.table
+1. **Never commit credentials** - Use environment variables via `.Renviron`
 
-For large datasets, you can use data.table:
+2. **Reuse sessions** - Create one session and reuse it for multiple requests
 
-```{r}
-library(data.table)
-library(treinusr)
-
-session <- treinus_auth()
-workouts <- treinus_get_workouts(session)
-
-# Convert to data.table
-dt <- as.data.table(workouts)
-
-# Fast aggregations
-dt[, .(
-  total_distance = sum(distance),
-  avg_duration = mean(duration_minutes)
-), by = sport_type]
-```
-
-### Handling Sessions
-
-Sessions can expire. Always check validity before making requests:
+3. **Error handling** - Wrap API calls in `tryCatch()` for production code
 
 ```{r}
-# Create session
-session <- treinus_auth()
-
-# ... some time later ...
-
-if (!treinus_session_valid(session)) {
-  # Re-authenticate if needed
-  session <- treinus_auth()
-}
-```
-
-### Error Handling
-
-```{r}
-library(tryCatch)
-
 result <- tryCatch(
   {
     session <- treinus_auth()
-    treinus_get_workouts(session)
+    treinus_get_exercises(session, athlete_id = 50)
   },
   error = function(e) {
-    message("Failed to retrieve workouts: ", e$message)
+    message("Failed: ", e$message)
     NULL
   }
 )
 ```
 
-## Best Practices
-
-1. **Never commit credentials**: Always use environment variables, never hardcode credentials in scripts
-
-2. **Session reuse**: Create one session and reuse it for multiple requests rather than authenticating for each request
-
-3. **Error handling**: Wrap API calls in `tryCatch()` for production code
-
-4. **Rate limiting**: Be respectful of the API - avoid making too many requests in a short time
-
-5. **Data validation**: Always validate and clean data retrieved from the API
-
 ## Troubleshooting
 
 ### Authentication Fails
 
-If authentication fails:
-
-1. Verify credentials in `.Renviron`
-2. Check that you can log in via the web interface
-3. Ensure you've restarted R after setting environment variables
-
-```{r}
-# Check current configuration
-treinus_config()
-
-# Verify credentials are set
-treinus_has_credentials()
-```
+1. Verify credentials: `treinus_config()`
+2. Check you can log in via the web interface
+3. Restart R after setting environment variables
 
 ### Session Expired
 
-If you get errors about redirects or login pages:
-
 ```{r}
-# Check session validity
-treinus_session_valid(session)
-
-# Re-authenticate
-session <- treinus_auth()
+if (!treinus_session_valid(session)) {
+  session <- treinus_auth()
+}
 ```
-
-## Next Steps
-
-- Explore the [API Reference](../reference/index.html) for all available functions
-- Check out [example workflows](../articles/examples.html)
-- Report issues or request features on [GitHub](https://github.com/yourusername/treinusr/issues)

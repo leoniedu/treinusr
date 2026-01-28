@@ -1,31 +1,25 @@
-# treinusr <img src="man/figures/logo.png" align="right" height="139" alt="" />
+# treinusr
 
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![R-CMD-check](https://github.com/yourusername/treinusr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/yourusername/treinusr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
-
 **treinusr** provides authenticated access to the [Treinus](https://webapp.treinus.com.br) workout tracking platform API. Retrieve your training data, performance metrics, and workout history programmatically in R.
 
 ## Installation
 
-You can install the development version of treinusr from GitHub:
-
 ```r
 # install.packages("pak")
-pak::pak("yourusername/treinusr")
+pak::pak("edColumn/treinusr")
 ```
 
 ## Setup
 
-### 1. Configure Credentials
-
-The recommended way to authenticate is by storing your credentials in environment variables:
+### Configure Credentials
 
 ```r
 library(treinusr)
 
-# Interactive setup (recommended - prompts for password securely)
+# Interactive setup (prompts for password securely)
 treinus_set_credentials()
 
 # Or provide directly
@@ -35,113 +29,80 @@ treinus_set_credentials(
 )
 ```
 
-This will save your credentials to `~/.Renviron`. Restart R or run `readRenviron("~/.Renviron")` to load them.
+This saves credentials to `~/.Renviron`. Restart R or run `readRenviron("~/.Renviron")` to load them.
 
-Alternatively, set environment variables manually in your `.Renviron`:
+## Usage
 
-```
-TREINUS_EMAIL=your.email@example.com
-TREINUS_PASSWORD=your-password
-```
-
-### 2. Authenticate
-
-Create an authenticated session:
+### Authenticate
 
 ```r
 library(treinusr)
 
-# Authenticate using credentials from environment variables
 session <- treinus_auth()
+# If you have multiple teams, you'll be prompted to select one
 ```
 
-## Usage
-
-### Get Dashboard Data
+### Get Exercises
 
 ```r
-# Retrieve dashboard summary
-dashboard <- treinus_get_dashboard(session)
+# Get exercises for an athlete
+exercises <- treinus_get_exercises(session, athlete_id = 50)
+
+# Get exercises for multiple athletes
+exercises <- treinus_get_exercises_batch(session, athlete_ids = c(50, 51, 52))
 ```
 
-### Get Workout Data
+### Get Exercise Analysis (GPS/Sensor Data)
 
 ```r
-# Get all workouts
-workouts <- treinus_get_workouts(session)
-
-# Get workouts for a specific date range
-workouts <- treinus_get_workouts(
-  session,
-  start_date = "2024-01-01",
-  end_date = "2024-01-31"
+# Get detailed analysis with GPS records
+analysis <- treinus_get_exercise_analysis(
+ session,
+ exercise_id = 57,
+ athlete_id = 50,
+ team_id = 2994
 )
+
+# Extract time-series records (raw with unit attributes)
+records <- treinus_extract_records(analysis)
+attr(records, "DistanceUnit")  # Check units
+
+# Extract with standardized units (km, km/h, degrees)
+records <- treinus_extract_records(analysis, standardize = TRUE)
 ```
 
-### Make Custom API Requests
-
-For endpoints not yet wrapped, use the low-level request function:
+### Custom API Requests
 
 ```r
 # Make a custom GET request
 resp <- treinus_request(
-  session,
-  endpoint = "/Athlete/Performance/Index",
-  method = "GET"
+ session,
+ endpoint = "/Athlete/Performance/Index",
+ method = "GET"
 )
 
-# Parse the response
+# Parse HTML response
 page <- httr2::resp_body_html(resp)
+data <- treinus_parse_table(page)
 ```
 
-### Session Management
+## Available Functions
 
-```r
-# Check if session is still valid
-treinus_session_valid(session)
+### Authentication
+- `treinus_auth()` - Create authenticated session
+- `treinus_session_valid()` - Check session validity
+- `treinus_set_credentials()` - Configure credentials
+- `treinus_has_credentials()` - Check if credentials are set
+- `treinus_config()` - View configuration
 
-# Check current configuration
-treinus_config()
-```
-
-## Authentication Details
-
-Treinus uses ASP.NET WebForms authentication. The package handles:
-
-- Extracting ViewState and ViewStateGenerator tokens
-- Managing session cookies
-- Handling ASP.NET-specific form postback requirements
-
-All of this is managed automatically by `treinus_auth()`.
-
-## Development Status
-
-This package is in active development. Current features:
-
-- ✅ Authentication with Treinus
-- ✅ Session management
-- ✅ Basic data retrieval
-- 🚧 Parsing workout data (in progress)
-- 🚧 Performance metrics extraction (planned)
-- 🚧 Training plan management (planned)
-
-## Workflow Integration
-
-Combine with the tidyverse for data analysis:
-
-```r
-library(treinusr)
-library(tidyverse)
-
-# Authenticate
-session <- treinus_auth()
-
-# Get and analyze workout data
-workouts <- treinus_get_workouts(session) |>
-  # Add your analysis here
-  filter(date >= "2024-01-01") |>
-  mutate(distance_km = distance / 1000)
-```
+### Data Retrieval
+- `treinus_get_exercises()` - Get exercises for an athlete
+- `treinus_get_exercises_batch()` - Get exercises for multiple athletes
+- `treinus_get_exercise_analysis()` - Get detailed GPS/sensor data
+- `treinus_extract_records()` - Extract and optionally standardize records
+- `treinus_get_dashboard()` - Get dashboard summary
+- `treinus_request()` - Make custom API requests
+- `treinus_parse_table()` - Parse HTML tables
 
 ## Security
 
@@ -151,15 +112,6 @@ workouts <- treinus_get_workouts(session) |>
 - Add `.Renviron` to your `.gitignore`
 - Use `treinus_set_credentials()` for secure setup
 
-## Related Projects
-
-- [httr2](https://httr2.r-lib.org/) - Modern HTTP client for R
-- [rvest](https://rvest.tidyverse.org/) - Web scraping tools
-
-## Code of Conduct
-
-Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By contributing to this project, you agree to abide by its terms.
-
 ## License
 
-MIT © Eduardo Leoni
+MIT
