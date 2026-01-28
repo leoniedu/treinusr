@@ -4,15 +4,16 @@
 \alias{treinus_get_exercises}
 \title{Get last exercises for an athlete}
 \usage{
-treinus_get_exercises(session, athlete_id)
+treinus_get_exercises(session, athlete_id = NULL)
 }
 \arguments{
 \item{session}{A treinus_session object from \code{\link[=treinus_auth]{treinus_auth()}}}
 
-\item{athlete_id}{Integer ID of the athlete}
+\item{athlete_id}{Integer ID of the athlete. If NULL, uses \code{TREINUS_ATHLETE_ID}
+environment variable.}
 }
 \value{
-A tibble with exercise data including columns like \code{id_exercise_done},
+A tibble with exercise data including columns like \code{id_exercise},
 \code{genre_name}, \code{start}, \code{distance}, \code{total_elapsed_time}, etc.
 }
 \description{
@@ -22,6 +23,10 @@ Retrieves the most recent exercises/workouts done by an athlete.
 \dontrun{
 session <- treinus_auth()
 exercises <- treinus_get_exercises(session, athlete_id = 50)
+
+# Or with environment variable set
+Sys.setenv(TREINUS_ATHLETE_ID = "50")
+exercises <- treinus_get_exercises(session)
 }
 
 }

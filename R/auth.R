@@ -352,7 +352,7 @@ treinus_select_team <- function(pending_login, team = NULL) {
   cli::cli_progress_done()
   cli::cli_alert_success("Successfully authenticated with Treinus!")
 
-  create_session(base_url, cookies, final_resp)
+  create_session(base_url, cookies, final_resp, team_id = as.integer(selected_team_id))
 }
 
 
@@ -514,7 +514,7 @@ merge_cookies <- function(existing_cookies, response) {
 
 #' Create a treinus_session object
 #' @keywords internal
-create_session <- function(base_url, cookies, response) {
+create_session <- function(base_url, cookies, response, team_id = NULL) {
   authenticated_req <- httr2::request(base_url) |>
     httr2::req_user_agent("treinusr R package (httr2)") |>
     httr2::req_headers(Cookie = cookies)
@@ -523,6 +523,7 @@ create_session <- function(base_url, cookies, response) {
     authenticated_req,
     class = c("treinus_session", class(authenticated_req)),
     base_url = base_url,
-    cookies = cookies
+    cookies = cookies,
+    team_id = team_id
   )
 }

@@ -3,22 +3,29 @@
 #' Retrieves the most recent exercises/workouts done by an athlete.
 #'
 #' @param session A treinus_session object from [treinus_auth()]
-#' @param athlete_id Integer ID of the athlete
+#' @param athlete_id Integer ID of the athlete. If NULL, uses `TREINUS_ATHLETE_ID`
+#'   environment variable.
 #'
-#' @return A tibble with exercise data including columns like `id_exercise_done`,
+#' @return A tibble with exercise data including columns like `id_exercise`,
 #'   `genre_name`, `start`, `distance`, `total_elapsed_time`, etc.
 #'
 #' @examples
 #' \dontrun{
 #' session <- treinus_auth()
 #' exercises <- treinus_get_exercises(session, athlete_id = 50)
+#'
+#' # Or with environment variable set
+#' Sys.setenv(TREINUS_ATHLETE_ID = "50")
+#' exercises <- treinus_get_exercises(session)
 #' }
 #'
 #' @export
-treinus_get_exercises <- function(session, athlete_id) {
+treinus_get_exercises <- function(session, athlete_id = NULL) {
   if (!inherits(session, "treinus_session")) {
     cli::cli_abort("{.arg session} must be a treinus_session object from {.fn treinus_auth}")
   }
+
+  athlete_id <- resolve_athlete_id(athlete_id)
 
   base_url <- attr(session, "base_url")
   url <- paste0(base_url, "/Athlete/Exercise/GetLastExerciseDone")
@@ -87,8 +94,10 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 #'
 #' @param session A treinus_session object from [treinus_auth()]
 #' @param exercise_id Integer ID(s) of the exercise(s). Can be a vector.
-#' @param athlete_id Integer ID of the athlete (single value)
-#' @param team_id Integer ID of the team (single value)
+#' @param athlete_id Integer ID of the athlete (single value). If NULL, uses
+#'   `TREINUS_ATHLETE_ID` environment variable.
+#' @param team_id Integer ID of the team (single value). If NULL, uses the
+#'   team_id from session (if set during auth) or `TREINUS_TEAM_ID` environment variable.
 #' @param cache Logical. Cache results locally? Default TRUE.
 #'   Cached data is stored in the user cache directory (see [treinus_cache_dir()]).
 #' @param .progress Logical. Show progress bar for multiple exercises? Default TRUE.
@@ -100,7 +109,10 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 #' \dontrun{
 #' session <- treinus_auth()
 #'
-#' # Single exercise
+#' # Single exercise (with env vars set)
+#' analysis <- treinus_get_exercise_analysis(session, exercise_id = 57)
+#'
+#' # Or explicit IDs
 #' analysis <- treinus_get_exercise_analysis(
 #'   session,
 #'   exercise_id = 57,
@@ -110,23 +122,20 @@ treinus_get_exercises_batch <- function(session, athlete_ids, .progress = TRUE) 
 #' records <- analysis$data$Analysis$Records
 #'
 #' # Multiple exercises
-#' analyses <- treinus_get_exercise_analysis(
-#'   session,
-#'   exercise_id = c(57, 58, 59),
-#'   athlete_id = 50,
-#'   team_id = 2994
-#' )
-#' # Access by exercise_id
+#' analyses <- treinus_get_exercise_analysis(session, exercise_id = c(57, 58, 59))
 #' analyses[["57"]]$data$Analysis$Records
 #' }
 #'
 #' @seealso [treinus_cache_dir()], [treinus_clear_cache()]
 #' @export
-treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id, team_id,
+treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id = NULL, team_id = NULL,
                                           cache = TRUE, .progress = TRUE) {
   if (!inherits(session, "treinus_session")) {
     cli::cli_abort("{.arg session} must be a treinus_session object from {.fn treinus_auth}")
   }
+
+  athlete_id <- resolve_athlete_id(athlete_id)
+  team_id <- resolve_team_id(team_id, session)
 
   if (length(athlete_id) != 1) {
     cli::cli_abort("{.arg athlete_id} must be a single value, not a vector.")
@@ -430,6 +439,54 @@ treinus_parse_table <- function(html, selector = "table") {
   table |>
     rvest::html_table() |>
     tibble::as_tibble()
+}
+
+
+# ID resolution helpers ---------------------------------------------------
+
+#' Resolve athlete_id from argument or environment
+#' @keywords internal
+resolve_athlete_id <- function(athlete_id) {
+  if (!is.null(athlete_id)) {
+    return(as.integer(athlete_id))
+  }
+
+  env_id <- Sys.getenv("TREINUS_ATHLETE_ID", unset = "")
+  if (env_id != "") {
+    return(as.integer(env_id))
+  }
+
+  cli::cli_abort(c(
+    "x" = "{.arg athlete_id} not provided.",
+    "i" = "Set {.envvar TREINUS_ATHLETE_ID} environment variable or pass explicitly."
+  ))
+}
+
+
+#' Resolve team_id from argument, session, or environment
+#' @keywords internal
+resolve_team_id <- function(team_id, session) {
+  if (!is.null(team_id)) {
+    return(as.integer(team_id))
+  }
+
+  # Try from session
+  session_team <- attr(session, "team_id")
+  if (!is.null(session_team)) {
+    return(as.integer(session_team))
+  }
+
+  # Try from environment
+  env_id <- Sys.getenv("TREINUS_TEAM_ID", unset = "")
+  if (env_id != "") {
+    return(as.integer(env_id))
+  }
+
+  cli::cli_abort(c(
+    "x" = "{.arg team_id} not provided.",
+    "i" = "Set {.envvar TREINUS_TEAM_ID} environment variable, or pass explicitly,",
+    "i" = "or authenticate with team selection to store team_id in session."
+  ))
 }
 
 

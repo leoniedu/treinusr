@@ -4,7 +4,7 @@
 \alias{create_session}
 \title{Create a treinus_session object}
 \usage{
-create_session(base_url, cookies, response)
+create_session(base_url, cookies, response, team_id = NULL)
 }
 \description{
 Create a treinus_session object
