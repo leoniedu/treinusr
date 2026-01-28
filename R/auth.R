@@ -377,10 +377,3 @@ handle_team_selection <- function(login_resp, team, base_url, cookies) {
   list(response = team_resp, cookies = cookies)
 }
 
-
-#' Null-default operator
-#'
-#' @keywords internal
-`%||%` <- function(x, y) {
-  if (is.null(x)) y else x
-}

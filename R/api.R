@@ -345,7 +345,7 @@ treinus_parse_table <- function(html, selector = "table") {
   
   table <- html |> rvest::html_element(selector)
   
-  if (rvest::html_length(table) == 0) {
+  if (inherits(table, "xml_missing") || length(table) == 0) {
     cli::cli_warn("No table found with selector: {selector}")
     return(tibble::tibble())
   }

@@ -9,7 +9,7 @@
 
 ```r
 # install.packages("pak")
-pak::pak("edColumn/treinusr")
+pak::pak("leoniedu/treinusr")
 ```
 
 ## Setup
