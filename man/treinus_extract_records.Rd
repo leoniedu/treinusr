@@ -4,23 +4,47 @@
 \alias{treinus_extract_records}
 \title{Extract records from exercise analysis}
 \usage{
-treinus_extract_records(analysis)
+treinus_extract_records(
+  analysis,
+  standardize = FALSE,
+  tz = "America/Sao_Paulo"
+)
 }
 \arguments{
 \item{analysis}{Analysis data from \code{\link[=treinus_get_exercise_analysis]{treinus_get_exercise_analysis()}}}
+
+\item{standardize}{Logical. Apply unit standardization? Default FALSE.}
+
+\item{tz}{Timezone for timestamp conversion (used when \code{standardize=TRUE}).
+Default "America/Sao_Paulo".}
 }
 \value{
-A tibble with time-series records (GPS, heart rate, etc.)
+A tibble with time-series records. Unit metadata from the analysis
+is attached as attributes (e.g., \code{attr(result, "DistanceUnit")}).
+
+If \code{standardize=TRUE}, additional columns are added:
+\itemize{
+\item \code{timestamp}: converted to POSIXct datetime
+\item \code{lat}, \code{lon}: coordinates in degrees (converted from semicircles)
+\item \code{distance_km}: distance in kilometers
+\item \code{speed_kmh}: speed in km/h
+}
 }
 \description{
-Helper function to extract and tidy the time-series records from
-exercise analysis data.
+Extracts time-series records from exercise analysis. Includes unit metadata
+as attributes and optionally standardizes values to common units.
 }
 \examples{
 \dontrun{
 session <- treinus_auth()
 analysis <- treinus_get_exercise_analysis(session, 57, 50, 2994)
+
+# Raw records with unit attributes
 records <- treinus_extract_records(analysis)
+attr(records, "DistanceUnit")
+
+# Standardized records
+records <- treinus_extract_records(analysis, standardize = TRUE)
 }
 
 }
