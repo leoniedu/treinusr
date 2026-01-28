@@ -1,0 +1,39 @@
+Package: treinusr
+Title: Access Treinus Workout Data via Private API
+Version: 0.1.0
+Authors@R: 
+    person("Eduardo", "Leoni", 
+           email = "e.leoni@gmail.com", 
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0003-0955-5232"))
+Description: Provides authenticated access to the Treinus webapp API 
+    (https://webapp.treinus.com.br) for retrieving workout data, training plans,
+    and performance metrics. Handles ASP.NET WebForms authentication and session
+    management.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends: 
+    R (>= 4.1.0)
+Imports:
+    httr2 (>= 1.0.0),
+    rvest (>= 1.0.0),
+    xml2 (>= 1.3.0),
+    cli (>= 3.6.0),
+    rlang (>= 1.1.0),
+    jsonlite (>= 1.8.0),
+    glue (>= 1.7.0),
+    dplyr (>= 1.1.0),
+    tibble (>= 3.2.0),
+    purrr (>= 1.0.0),
+    janitor (>= 2.2.0)
+Suggests: 
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    withr
+Config/testthat/edition: 3
+URL: https://github.com/yourusername/treinusr
+BugReports: https://github.com/yourusername/treinusr/issues
+VignetteBuilder: knitr

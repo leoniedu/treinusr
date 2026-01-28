@@ -1,0 +1,54 @@
+url: https://yourusername.github.io/treinusr/
+template:
+  bootstrap: 5
+  bootswatch: flatly
+
+home:
+  title: Access Treinus Workout Data from R
+  description: >
+    Authenticated access to the Treinus workout tracking platform API.
+
+reference:
+  - title: Authentication
+    desc: Functions for authenticating with Treinus
+    contents:
+    - treinus_auth
+    - treinus_session_valid
+    
+  - title: Data Retrieval
+    desc: Functions for retrieving workout and performance data
+    contents:
+    - treinus_get_workouts
+    - treinus_get_dashboard
+    - treinus_request
+    - treinus_parse_table
+    
+  - title: Configuration
+    desc: Functions for managing credentials and configuration
+    contents:
+    - treinus_set_credentials
+    - treinus_has_credentials
+    - treinus_config
+
+articles:
+  - title: Get Started
+    navbar: ~
+    contents:
+    - getting-started
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    home: ~
+    reference:
+      text: Reference
+      href: reference/index.html
+    news:
+      text: News
+      href: news/index.html
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/yourusername/treinusr
+      aria-label: GitHub
