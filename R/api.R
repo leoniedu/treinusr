@@ -144,8 +144,17 @@ treinus_get_exercise_analysis <- function(session, exercise_id, athlete_id, team
 
   result <- httr2::resp_body_json(resp)
 
-  # Save to cache
- if (cache) {
+  # Check for API error
+  if (isFALSE(result$success)) {
+    cli::cli_abort(c(
+      "x" = "Failed to get exercise analysis.",
+      "i" = "API message: {result$message}",
+      "i" = "exercise_id={exercise_id}, athlete_id={athlete_id}, team_id={team_id}"
+    ))
+  }
+
+  # Save to cache only on success
+  if (cache) {
     cache_file <- treinus_cache_path(team_id, athlete_id, exercise_id)
     dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
     saveRDS(result, cache_file)
